@@ -1,0 +1,9 @@
+#SingleInstance, Force
+#NoEnv
+#NoTrayIcon
+
+DetectHiddenWindows, On	
+SetWorkingDir %A_ScriptDir%
+startMode := "autostart"
+runwait %A_WorkingDir%\ATPCO-STARTPROCESS.exe %startMode%
+WinActivate, ATPCO AUTOMATION V2.0

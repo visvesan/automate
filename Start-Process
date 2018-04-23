@@ -1,0 +1,672 @@
+#SingleInstance, Force
+#NoEnv
+#NoTrayIcon
+
+;~ #Include %A_ScriptDir%\ADOSQL.ahk
+
+d1 := 320
+d2 := 640
+d3 := 960
+d4 := 1600
+passwordStatus := false
+
+;~ List for Dropdownlist
+connectionString := "Provider=SQLOLEDB.1;Password=abc@123;Persist Security Info=True;User ID=airline;Initial Catalog=DEMAT_ROBOT_COMMUNICATOR;Data Source=BBYAIRDBS03;"
+query := "SELECT AIRLINE,RTRIM(USERID),RTRIM([PASSWORD]),EMAIL_ID from Robotics_ATPCO_LoginDtls where Airline in('WY','IE','UL','ME','UX','ZI','QR') AND ActiveStatus = 1"
+
+processDDL=
+(Join|
+Select Process|
+01-ZeroFare - Today's Date
+02-ZeroFare - Tomorrow's Date
+)
+;~ Adding Controls to GUI
+Gui, Add, Checkbox, x9 y9 vCheckAll gTASKS_SELECT, All
+Gui, Add, DropDownList, x51 y5 w204 vguiProcess, % processDDL
+;~ Gui, Add, DropDownList, x51 y5 w224 vguiProcess, % timeBasedDDL
+Gui, Add, Button, x263 y4 Default gGO, Go
+;~Gui, Add, Text, x325 y9 w103 h13 , XRS/ZF Delay in ms :
+;~Gui, Add, ComboBox, x432 y6 w64 vguiLoadDelay  , 0|1000|2000||3000|5000|10000|20000
+;~Gui, Add, ListView, x3 y35 w648 r9 vguiTasksList hwndLV1 LV0x10 NoSortHdr Grid Checked gSELECT_ROW_1,
+Gui, Add, ListView, x3 y35 w648 r9 vguiTasksList hwndLV1 LV0x10 NoSortHdr Grid Checked,
+Gui, Add, StatusBar
+
+gosub SCHEDULE_TASK
+GuiControl, ChooseString, guiProcess, %ddlText%
+
+;~Adding Columns
+LV_InsertCol(1,  0048, "Airline")
+LV_InsertCol(2,  0280, "Username")
+LV_InsertCol(3,  0000, "Password")
+LV_InsertCol(4,  0000, "EmailTo")
+LV_InsertCol(5,  0000, "EmailCC")
+LV_InsertCol(6,  0000, "DiscDateRaw")
+LV_InsertCol(7,  0000, "Disc Date")
+LV_InsertCol(8,  0000, "Tariff Range")
+LV_InsertCol(9,  0000, "One Tariff")
+LV_InsertCol(10, 0000, "One Rule")
+LV_InsertCol(11, 0000, "One Category")
+SB_SetParts(256)
+focusedRow := 1
+gosub REDRAW_LISTVIEW
+Gui, Show, w330 h253, ATPCO AUTOMATION V4.0
+startMode = %1%
+if(startMode = "autostart")
+{
+	;~ GuiControlGet, Checked,,checkbox
+	;~ Gui, Add, Checkbox, x9 y9 vCheckAll gTASKS_SELECT, All
+	guicontrol, , CheckAll, 1	
+	MsgBox, 4160, %A_LineNumber% Info ... , %startMode%, 3.2
+	LV_Modify( A_Index , "Icon" . 1 )	
+	LV_Modify(0,  "Check")
+	gosub GO
+}
+
+return
+
+SCHEDULE_TASK:
+current_Time := A_Now
+FormatTime,TimeString, %current_Time%, HH tt
+StringSplit, time_array, TimeString, %A_Space%
+get_current_time := time_array1
+if(get_current_time >= 12)
+{
+	ddlText := "02-ZeroFare - Tomorrow's Date"	
+}
+else
+{
+	ddlText := "01-ZeroFare - Today's Date"	
+}
+return
+
+;~Read dat file and inser 
+REDRAW_LISTVIEW:
+LV_Delete()
+
+;~ accountsBall := ObjLoad(A_ScriptDir . "\ATPCO-GoldProcessFusion.dat" )
+accountsBall := ADOSQL(connectionString, query, ColumnArray, columnCount)
+
+
+for key, obj in accountsBall
+LV_Add("" 
+, obj[1]
+, obj[2]
+, obj[3]
+, obj[4])
+;~ , obj._airline
+;~ , obj._username
+;~ , obj._password)
+;~ , obj._emailto
+;~ , obj._emailcc
+;~ , obj.disc["dateraw"]
+;~ , obj.disc["datefmt"]
+;~ , obj.disc.depth
+;~ , obj.disc.onetariff
+;~ , obj.disc.onerule
+;~ , obj.disc.onecategory)
+LV_Modify(focusedRow, "+Select +Focus Vis" )
+return
+
+
+SELECT_ROW_1:
+rowAirline=
+rowUsername=
+rowPassword=
+A_GuiControlVAR := "Update"
+Gui , 1:Submit , NoHide
+if A_GuiControl <> guiListAccounts
+return
+if A_GuiEvent = DoubleClick
+{
+selectedRow := LV_GetNext( 0 , "F" )
+if not selectedRow
+return
+LV_GetText(rowAirline     , selectedRow,  1 )
+LV_GetText(rowUsername    , selectedRow,  2 )
+LV_GetText(rowPassword    , selectedRow ,  3 )
+LV_GetText(rowEmailTo     , selectedRow ,  4 )
+LV_GetText(rowEmailCC     , selectedRow ,  5 )
+LV_GetText(rowDiscDateRaw , selectedRow ,  6 )
+LV_GetText(rowDiscDateFmt , selectedRow ,  7 )
+LV_GetText(rowTariffRange , selectedRow ,  8 )
+LV_GetText(rowOneTariff   , selectedRow ,  9 )
+LV_GetText(rowOneRule     , selectedRow , 10 )
+LV_GetText(rowOneCategory , selectedRow , 11 )
+SB_SetText("For the Airline : " webUsername )
+focusedRow := selectedRow
+gosub, SUB_TO_UPDATE_TASK
+}
+return
+
+SUB_TO_UPDATE_TASK:
+taskNodeAction  = Update
+if ( rowAirline == "Airline" ) AND ( rowUsername == "Username" ) AND (rowPassword == "Password" )
+return
+
+GO:
+SB_SetText( "Started",1)
+hardStop := false
+IfInString, varProcess , Select Process
+return
+
+GuiControlGet, varProcess,  , guiProcess
+MsgBox, 4160, %A_LineNumber% Info ... , %varProcess%, 3.2
+
+if(varProcess == "Select Process")
+{
+	MsgBox, 4160 , %A_LineNumber% Info ... ,Date not selected, 3.2
+	return
+}
+;~Get Checked Items
+accountsList := f_LVGetCheckedItems("" , "ahk_id " . LV1 )
+accountsInList := false
+rowsGoBall := []
+Loop, Parse, accountsList, `n
+{
+if !A_LoopField
+break
+StringSplit, rowPar, A_LoopField, `t
+rowsGoBall.Push([rowPar1, rowPar2, rowPar3, rowPar4, rowPar5, rowPar6, rowPar7, rowPar8, rowPar9, rowPar10, rowPar11])
+accountsInList := true
+}
+if !accountsInList
+{
+MsgBox , 4160 , %A_LineNumber% Info ... , No Accounts selected , 3.2
+return
+}
+
+for key , obj in rowsGoBall
+{
+	
+SB_SetText("Configuring IE",1)
+SB_SetText("Pass # " A_Index,2)
+SB_SetText("Executing " varProcess, 1)
+
+gosub,TERMINATE_IE
+webAirline  := obj.1
+webUsername := obj.2
+webPassword := obj.3
+
+gosub, INITIATE_IE
+
+tabsForTask := "Fares"
+gosub INITIATE_TABS
+Sleep %d4%
+
+if passwordStatus
+{
+	if(varProcess == "01-ZeroFare - Today's Date")
+	{	
+	sessionMode := "auto1"
+	whichDay := "same"
+	gosub, IE_LOAD_DELAY
+	Sleep %d4%
+	gosub, ZERO_FARES
+	
+	if FileExist("log.txt")
+	{
+		Sleep %d4%
+		FileRead, OutputVar, %A_WorkingDir%\log.txt
+		isItSlow := SubStr(OutputVar,1,4)
+		FileDelete, %A_WorkingDir%\log.txt
+		if(isItSlow = "slow")
+		{	
+			MsgBox,4096, %A_LineNumber% IF... ,%isItSlow%, 3.2
+			gosub,TERMINATE_IE
+			Sleep %d4%
+			gosub, INITIATE_IE
+			
+			tabsForTask := "Fares"
+			gosub INITIATE_TABS
+			Sleep %d2%
+			sessionMode := "auto1"
+			whichDay := "same"
+			gosub, IE_LOAD_DELAY
+			Sleep %d2%
+			gosub, ZERO_FARES
+		}
+		FileDelete, %A_WorkingDir%\log.txt
+	}
+	}
+	
+	if (varProcess == "02-ZeroFare - Tomorrow's Date")
+	{	
+	sessionMode := "auto1"
+	whichDay := "next"
+	gosub, IE_LOAD_DELAY
+	Sleep %d4%
+	gosub, ZERO_FARES
+	
+	if FileExist("log.txt")
+	{
+		FileRead, OutputVar, %A_WorkingDir%\log.txt
+		isItSlow := SubStr(OutputVar,1,4)
+		FileDelete, %A_WorkingDir%\log.txt
+		
+		if(isItSlow = "slow")
+		{
+			MsgBox,4096, %A_LineNumber% IF... ,%isItSlow%, 3.2
+			
+			gosub,TERMINATE_IE
+			Sleep %d2%
+			gosub, INITIATE_IE
+			
+			tabsForTask := "Fares"
+			gosub INITIATE_TABS
+			Sleep %d2%
+			sessionMode := "auto1"
+			whichDay := "next"
+			gosub, IE_LOAD_DELAY
+			Sleep %d2%
+			gosub, ZERO_FARES
+		}
+		FileDelete, %A_WorkingDir%\log.txt
+	}
+}	
+}
+else
+{
+	LogToFile("Password Expired for " webUsername)	
+}
+	passwordStatus := false
+}
+gosub,TERMINATE_IE
+gosub, GuiClose
+return
+
+;~Check All Check Box
+TASKS_SELECT:
+{
+GuiControlGet, cAll, ,CheckAll
+MsgBox, 4160, %A_LineNumber% Info ... , %cAll%, 3.2
+Gui, 1:Submit , NoHide
+Gui, 1:ListView , guiListAccounts
+Loop, % LV_GetCount()
+LV_Modify( A_Index , "Icon" . 1 )
+if CheckAll
+{
+LV_Modify(0,  "Check" )
+}
+else
+{
+LV_Modify( 0, "-Check" )
+}
+return
+}
+
+
+
+;~Find the Checked Airlines
+f_LVGetCheckedItems(cN, wN) {	
+ControlGet, LVItems, List, , % cN, % wN
+Loop, Parse, LVItems, `n
+{
+;~MsgBox, 4160, %A_LineNumber% Info ... , %A_Index%, 3.2
+SendMessage, 0x102C, A_Index - 1, 0x2000, % cN, % wN
+CheckedItems .= (ErrorLevel ? "`n" . A_LoopField : "")
+}
+Return SubStr(CheckedItems, 2)
+}
+
+;~ ObjLoad(addr,sz:=""){
+;~ static type:=["Char","UChar","Short","UShort","Int","UInt","Int64","UInt64","Double"],num:=[1,1,2,2,4,4,8,8,8]
+;~ If (sz=""){
+;~ If !FileExist(addr)
+;~ return
+;~ FileGetSize,sz,%addr%
+;~ FileRead,v,*c %addr%
+;~ If ErrorLevel||!sz
+;~ return
+;~ addr:=&v
+;~ }
+;~ end:=addr+sz,  obj:=[]
+;~ While % addr<end{
+;~ If NumGet(addr+0,"Char")=-11
+;~ k:=ObjLoad(addr+9,sz:=NumGet(addr+1,"UInt64")),addr+=sz+9
+;~ else if NumGet(addr+0,"Char")=-10
+;~ k:=StrGet(addr+9),addr+=NumGet(addr+1,"UInt64")+9
+;~ else      k:=NumGet(addr+1,type[sz:=-1*NumGet(addr+0,"Char")]),addr+=num[sz]+1
+;~ If NumGet(addr+0,"Char")= 11
+;~ obj[k]:=ObjLoad(addr+9,sz:=NumGet(addr+1,"PTR")),addr+=sz+9
+;~ else if NumGet(addr+0,"Char")= 10
+;~ obj.SetCapacity(k,sz:=NumGet(addr+1,"UInt64")),DllCall("RtlMoveMemory","PTR",obj.GetAddress(k),"PTR",addr+9,"PTR",sz),addr+=sz+9
+;~ else obj[k]:=NumGet(addr+1,type[sz:=NumGet(addr+0,"Char")]),addr+=num[sz]+1
+;~ }
+;~ return obj
+;~ }
+
+;~ ObjDump(obj,ByRef var,mode:=0){
+;~ If IsObject(var){
+;~ If FileExist(obj){
+;~ FileDelete,%obj%
+;~ If ErrorLevel
+;~ return
+;~ }
+;~ f:=FileOpen(obj,"rw-rwd"),VarSetCapacity(v,sz:=RawObjectSize(var,mode),0)
+;~ ,RawObject(var,&v,mode),count:=sz//65536,ptr:=&v
+;~ Loop % count
+;~ f.RawWrite(ptr+0,65536),ptr+=65536
+;~ return sz,f.RawWrite(ptr+0,Mod(sz,65536)),f.Close()
+;~ } else return sz,VarSetCapacity(var,sz:=RawObjectSize(obj,mode),0),RawObject(obj,&var,mode)
+;~ }
+
+;~ RawObject(obj,addr,buf:=0){
+;~ for k,v in obj
+;~ {
+;~ If IsObject(k)
+;~ NumPut(-11,addr+0,"Char"),NumPut(sz:=RawObjectSize(k,buf),addr+1,"UInt64"),RawObject(k,addr+9),addr+=sz+9
+;~ else if (k+0="")
+;~ NumPut(-10,addr+0,"Char"),NumPut(StrPut(k,addr+9)*(A_IsUnicode?2:1),addr+1,"UInt64"),addr+=NumGet(addr+1,"UInt64")+9
+;~ else NumPut( InStr(k,".")?-9:k>4294967295?-8:k>65535?-6:k>255?-4:k>-1?-2:k>-129?-1:k>-32769?-3:k>-2147483649?-5:-7,addr+0,"Char")
+;~ ,NumPut(k,addr+1,InStr(k,".")?"Double":k>4294967295?"UInt64":k>65535?"UInt":k>255?"UShort":k>-1?"UChar":k>-129?"Char":k>-32769?"Short":k>-2147483649?"Int":"Int64")
+;~ ,addr+=InStr(k,".")||k>4294967295?9:k>65535?5:k>255?3:k>-129?2:k>-32769?3:k>-2147483649?5:9
+;~ If IsObject(v)
+;~ NumPut( 11,addr+0,"Char"),NumPut(sz:=RawObjectSize(v,buf),addr+1,"UInt64"),RawObject(v,addr+9),addr+=sz+9
+;~ else if (v+0="")
+;~ NumPut( 10,addr+0,"Char"),NumPut(sz:=buf?obj.GetCapacity(k):StrPut(v)*(A_IsUnicode?2:1),addr+1,"Int64"),DllCall("RtlMoveMemory","PTR",addr+9,"PTR",&v,"PTR",sz),addr+=sz+9
+;~ else NumPut( InStr(v,".")?9:v>4294967295?8:v>65535?6:v>255?4:v>-1?2:v>-129?1:v>-32769?3:v>-2147483649?5:7,addr+0,"Char")
+;~ ,NumPut(v,addr+1,InStr(v,".")?"Double":v>4294967295?"UInt64":v>65535?"UInt":v>255?"UShort":v>-1?"UChar":v>-129?"Char":v>-32769?"Short":v>-2147483649?"Int":"Int64")
+;~ ,addr+=InStr(v,".")||v>4294967295?9:v>65535?5:v>255?3:v>-129?2:v>-32769?3:v>-2147483649?5:9
+;~ }
+;~ }
+
+;~ RawObjectSize(obj,buf:=0,sz:=0){
+;~ for k,v in obj
+;~ {
+;~ If IsObject(k)
+;~ sz+=RawObjectSize(k,buf)+9
+;~ else if (k+0="")
+;~ sz+=StrPut(k)*(A_IsUnicode?2:1)+9
+;~ else sz+=InStr(k,".")||k>4294967295?9:k>65535?5:k>255?3:k>-129?2:k>-32769?3:k>-2147483649?5:9
+;~ If IsObject(v)
+;~ sz+=RawObjectSize(v,buf)+9
+;~ else if (v+0="")
+;~ sz+=(buf?obj.GetCapacity(k):StrPut(v)*(A_IsUnicode?2:1))+9
+;~ else sz+=InStr(v,".")||v>4294967295?9:v>65535?5:v>255?3:v>-129?2:v>-32769?3:v>-2147483649?5:9
+;~ }
+;~ return sz
+;~ }
+
+GuiClose:
+{
+	ExitApp
+	return
+}
+
+
+LogToFile(TextToLog)
+{	
+	FormatTime, currentTime,, Time
+	FormatTime, TimeString,, yyyyMMdd
+	fileName :=  TimeString . ".txt"
+    FileAppend, %TextToLog% - %currentTime% `n, %fileName%
+}
+
+IE_LOAD_DELAY:
+{
+delayStart=
+delayCount=
+Gui , 1:Submit , NoHide
+GuiControlGet , varLoadDelay , , guiLoadDelay
+delayStart     := A_TickCount
+Progress , M w0256 h0080 C00 FM8 WM400 FS8 WS400 , %A_Space% , %A_Space% , Loading.....
+Loop
+{
+if ( delayCount >= varLoadDelay )
+{
+Progress ,                 ,          , [%varLoadDelay% ms] of [%varLoadDelay% ms] ,          ,
+Sleep , 1600
+Progress , Off
+break
+}
+delayCount   := A_TickCount - delayStart
+calcProgress := ( delayCount / varLoadDelay ) * 100
+Progress ,                 ,          , [%delayCount% ms] of [%varLoadDelay% ms] ,          ,
+Progress , %calcProgress%
+Sleep , 100
+}
+Progress , Off
+return
+}
+
+TERMINATE_IE:
+WinActivate,FM Home
+d3 := 960
+Sleep %d3%
+FormatTime, Time
+curDateTime := Time
+LogToFile("===================Started At=================== " curDateTime)
+LogToFile("1. Terminating All opened ie")
+if IsObject(wb)
+{
+	;SB_SetText("Logging out of ATPCO",1)
+	Loop % subSystemLinks.length
+	{	
+	If(subSystemLinks[A_index-1].href = "javascript:logOff();" )
+		{
+			subSystemLinks[A_index-1].click()
+			Break
+		}
+	}
+}
+Sleep 3200
+while wb.busy
+{
+ToolTip FM HOME is busy [%A_Index%]
+sleep 0640
+if ( A_Index > 16 )
+{
+hardStop:= true
+break
+}
+}
+*/
+ToolTip
+Sleep 1600
+wb.Quit
+Sleep 1600
+wb=
+while WinExist("ahk_class IEFrame")
+{
+WinActivate
+WinKill   , A       ,        , 4
+}
+*/
+explorerProcessExists:= true
+killFilter = `"USERNAME eq %A_UserName%`"
+Runwait , taskkill  /f /t /im iexplore.exe /fi %killFilter% , , Hide
+LogToFile("2. Finished Termination All Ie")
+return
+
+INITIATE_IE:
+DetectHiddenWindows,On
+wb := ComObjCreate("InternetExplorer.Application")
+wb.Visible := true
+LogToFile("3. Opening IE and Navigating to https://faremanager.atpco.net/fmhome/login.jsp")
+wb.Navigate("https://faremanager.atpco.net/fmhome/login.jsp")
+while wb.busy
+sleep 0640
+WinGet,atpcoHWND,ID,A
+WinMaximize,ahk_id %atpcoHWND%
+username_input:= wb.document.getElementById("j_username")
+username_input.value:= webUsername
+Sleep 3200
+LogToFile("4. Login for " webUsername)
+
+wb.document.getElementsByName("j_password")[0].value := webPassword
+Sleep 3200
+withNameIsLogin:= wb.document.getElementsByName("login")
+
+LogToFile("5. Entered Username and Password")
+
+Loop % withNameIsLogin.length
+{
+If(withNameIsLogin[A_index-1].classname = "o-fluidmedia--full o-fg--c-white o-bg--c-pacific-blue u-space--pa-t")
+{
+	withNameIsLogin[A_index-1].click()
+    LogToFile("6. Loging button clicked")
+	Break
+}
+}
+while wb.busy
+{
+sleep 0640
+if (A_Index > 48 )
+{
+hardStop:= true
+break
+}
+}
+subSystemLinks:= wb.document.getelementsByTagName("a")
+return
+
+INITIATE_TABS:
+SetTitleMatchMode, 2
+SetTitleMatchMode, Slow
+len := subSystemLinks.length
+MsgBox,4096, %A_LineNumber% Info ... ,%len% pass length # %A_Index%, 3.2
+DetectHiddenWindows,On
+
+Loop % subSystemLinks.length
+{
+If(subSystemLinks[A_index-1].href = "javascript:openApplicationWindow('Fares')")
+{
+  subSystemLinks[A_index-1].click()
+  LogToFile("7. Fares Link Clicked")
+  passwordStatus := true
+  Break
+}
+}
+sleep 0960
+return
+
+ZERO_FARES:
+DetectHiddenWindows, On	
+SetWorkingDir %A_ScriptDir%
+runwait %A_WorkingDir%\Status-window.exe %sessionMode% %webAirline% %whichDay%
+WinActivate, ATPCO-Process
+return
+
+
+Global ADOSQL_LastError, ADOSQL_LastQuery ; These super-globals are for debugging your SQL queries.
+
+ADOSQL( Connection_String, Query_Statement , ByRef ColumnArray,ByRef columnCount) {
+
+	coer := "", txtout := 0, rd := "`n", cd := "CSV", str := Connection_String ; 'str' is shorter.
+	ColumnArray := []
+; Examine the connection string for output formatting options.
+	If ( 9 < oTbl := 9 + InStr( ";" str, ";RowDelim=" ) )
+	{
+		rd := SubStr( str, oTbl, 0 - oTbl + oRow := InStr( str ";", ";", 0, oTbl ) )
+		str := SubStr( str, 1, oTbl - 11 ) SubStr( str, oRow )
+		txtout := 1
+	}
+	If ( 9 < oTbl := 9 + InStr( ";" str, ";ColDelim=" ) )
+	{
+		cd := SubStr( str, oTbl, 0 - oTbl + oRow := InStr( str ";", ";", 0, oTbl ) )
+		str := SubStr( str, 1, oTbl - 11 ) SubStr( str, oRow )
+		txtout := 1
+	}
+
+	ComObjError( 0 ) ; We'll manage COM errors manually.
+
+; Create a connection object. > http://www.w3schools.com/ado/ado_ref_connection.asp
+; If something goes wrong here, return blank and set the error message.
+	If !( oCon := ComObjCreate( "ADODB.Connection" ) )
+		Return "", ComObjError( 1 ), ErrorLevel := "Error"
+		, ADOSQL_LastError := "Fatal Error: ADODB is not available."
+
+
+	oCon.ConnectionTimeout := 3 ; Allow 3 seconds to connect to the server.
+	oCon.CursorLocation := 3 ; Use a client-side cursor server.
+	oCon.CommandTimeout := 900 ; A generous 15 minute timeout on the actual SQL statement.
+	oCon.Open( str ) ; open the connection.
+
+; Execute the query statement and get the recordset. > http://www.w3schools.com/ado/ado_ref_recordset.asp
+	If !( coer := A_LastError )
+		oRec := oCon.execute( ADOSQL_LastQuery := Query_Statement )
+
+	If !( coer := A_LastError ) ; The query executed OK, so examine the recordsets.
+	{
+		o3DA := [] ; This is a 3-dimensional array.
+		While IsObject( oRec )
+			If !oRec.State ; Recordset.State is zero if the recordset is closed, so we skip it.
+				oRec := oRec.NextRecordset()
+			Else ; A row-returning operation returns an open recordset
+			{
+				oFld := oRec.Fields
+				o3DA.Insert( oTbl := [] )
+				;~ oTbl.Insert( oRow := [] )
+
+				Loop % cols := oFld.Count ; Put the column names in the first row.
+				{
+					;~ oRow[ A_Index ] := oFld.Item( A_Index - 1 ).Name
+					ColumnArray.Push(oRow[ A_Index ])
+				}
+				columnCount := oFld.Count
+				i := 0
+				While !oRec.EOF ; While the record pointer is not at the end of the recordset...
+				{
+					oTbl.Insert( oRow := [] )
+					oRow.SetCapacity( cols ) ; Might improve performance on huge tables??
+					Loop % cols
+					{
+						oRow[ A_Index ] := oFld.Item( A_Index - 1 ).Value	
+					}
+					o:=oRec.MoveNext() ; move the record pointer to the next row of values
+				}
+				;~ oTbl.Remove(i)
+				oRec := oRec.NextRecordset() ; Get the next recordset.
+			}
+
+		If (txtout) ; If the user wants plaintext output, copy the results into a string
+		{
+			Query_Statement := "x"
+			Loop % o3DA.MaxIndex()
+			{
+				Query_Statement .= rd rd
+				oTbl := o3DA[ A_Index ]
+				Loop % oTbl.MaxIndex()
+				{
+					oRow := oTbl[ A_Index ]
+					Loop % oRow.MaxIndex()
+						If ( cd = "CSV" )
+						{
+							str := oRow[ A_Index ]
+							StringReplace, str, str, ", "", A
+							If !ErrorLevel || InStr( str, "," ) || InStr( str, rd )
+								str := """" str """"
+							Query_Statement .= ( A_Index = 1 ? rd : "," ) str
+						}
+						Else
+							Query_Statement .= ( A_Index = 1 ? rd : cd ) oRow[ A_Index ]
+				}
+			}
+			Query_Statement := SubStr( Query_Statement, 2 + 3 * StrLen( rd ) )
+		}
+	}
+	Else ; Oh NOES!! Put a description of each error in 'ADOSQL_LastError'.
+	{
+		oErr := oCon.Errors ; > http://www.w3schools.com/ado/ado_ref_error.asp
+		Query_Statement := "x"
+		Loop % oErr.Count
+		{
+			oFld := oErr.Item( A_Index - 1 )
+			str := oFld.Description
+			Query_Statement .= "`n`n" SubStr( str, 1 + InStr( str, "]", 0, 2 + InStr( str, "][", 0, 0 ) ) )
+				. "`n   Number: " oFld.Number
+				. ", NativeError: " oFld.NativeError
+				. ", Source: " oFld.Source
+				. ", SQLState: " oFld.SQLState
+		}
+		ADOSQL_LastError := SubStr( Query_Statement, 4 )
+		Query_Statement := ""
+		txtout := 1
+	}
+
+; Close the connection and return the result. Local objects are cleaned up as the function returns.
+	oCon.Close()
+	ComObjError( 1 )
+	ErrorLevel := coer
+	Return txtout ? Query_Statement : o3DA.MaxIndex() = 1 ? o3DA[1] : o3DA
+} ; END - ADOSQL( Connection_String, Query_Statement )

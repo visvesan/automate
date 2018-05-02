@@ -1,0 +1,33 @@
+#SingleInstance, Force
+#NoEnv
+
+processDDL=
+(Join|
+Select|
+10
+20
+30
+)
+
+sw := A_ScreenWidth-100
+sh := A_ScreenHeight-100
+
+;~ Gui, Add, Checkbox, x9 y9 vCheckAll gTASKS_SELECT, All
+Gui, Add, DropDownList, x3 y25 w110 vguiProcess, % processDDL
+Gui, Add, Button, x165 y25 w55 Default gGO, Go
+lw := sw - 55
+Gui, Add, ListView, x3 y55 w%lw% r9 vguiTasksList hwndLV1 LV0x10 NoSortHdr Grid Checked,
+
+
+
+Gui, Show,w%sw% h%sh%, AUTOMATION V1.0
+return
+
+TASKS_SELECT:
+{
+	MsgBox, "Hi"
+}
+GO:
+{
+	MsgBox, Go
+}

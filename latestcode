@@ -1,0 +1,22 @@
+https://github.com/castle-it/dynamic-linq-query-builder
+
+
+var canvas = new fabric.Canvas('c');
+ var quality = 1
+var image = canvas.toDataURL("image/jpeg", 1);
+
+                var blob = dataURItoBlob(image);
+
+                var formData = new FormData();
+                formData.append('image', blob, "image.jpg");
+
+                $http({
+                    method: 'Post',
+                    url: "http://localhost:50769/home/PostFileWithData",
+                    headers: { 'Content-Type': undefined },
+                    data: { files: formData }
+                    }).then(function (response) {
+                    console.log(response);
+                    //saveAs(response.data, fileName)
+                })
+            }

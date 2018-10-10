@@ -277,3 +277,13 @@ mlakilliyoor@tn.gov.in
 mlanominated@tn.gov.in
 parsec@tn.gov.in
 collrari@nic.in
+
+
+
+
+
+
+https://github.com/fengyuanchen/cropper#methods
+https://stackoverflow.com/questions/linked/4998908?pagesize=50&sort=hot
+https://github.com/castle-it/dynamic-linq-query-builder
+https://github.com/tom-son/CanvasEditor

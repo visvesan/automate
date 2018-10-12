@@ -287,3 +287,8 @@ https://github.com/fengyuanchen/cropper#methods
 https://stackoverflow.com/questions/linked/4998908?pagesize=50&sort=hot
 https://github.com/castle-it/dynamic-linq-query-builder
 https://github.com/tom-son/CanvasEditor
+
+
+https://github.com/nitinjs/india-sms-api - free smsm
+https://github.com/nitinjs
+https://github.com/QubizSolutions/quiz-engine

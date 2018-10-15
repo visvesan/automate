@@ -289,6 +289,11 @@ https://github.com/castle-it/dynamic-linq-query-builder
 https://github.com/tom-son/CanvasEditor
 
 
+https://www.youtube.com/watch?v=UYh6EvpQquw&list=PLjC4UKOOcfDQDTkgJmk3igwoARHocdAil
+https://github.com/CodAffection
+http://www.codaffection.com/
+
+
 https://github.com/nitinjs/india-sms-api - free smsm
 https://github.com/nitinjs
 https://github.com/QubizSolutions/quiz-engine

@@ -300,6 +300,8 @@ https://github.com/QubizSolutions/quiz-engine
 https://github.com/QubizSolutions/quiz-engine
 
 
+$http.defaults.headers.common['my_Token'] = "123456789";
+
 
 GlobalConfiguration.Configuration.MessageHandlers.Add(new EISAPIKeyHandler());
 

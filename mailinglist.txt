@@ -298,3 +298,62 @@ https://github.com/nitinjs/india-sms-api - free smsm
 https://github.com/nitinjs
 https://github.com/QubizSolutions/quiz-engine
 https://github.com/QubizSolutions/quiz-engine
+
+
+
+GlobalConfiguration.Configuration.MessageHandlers.Add(new EISAPIKeyHandler());
+
+
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Threading.Tasks;
+using System.Web;
+using System.Web.Http.Cors;
+
+namespace EIS.API
+{
+    public class EISAPIKeyHandler : DelegatingHandler
+    {
+        protected override System.Threading.Tasks.Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, System.Threading.CancellationToken cancellationToken)
+        {
+            
+            if (request.Headers.Contains("Access-Control-Request-Headers"))
+            {
+                return base.SendAsync(request, cancellationToken);
+
+            }
+            if (request.Headers.Contains("my_Token"))
+            {
+                var apiKey = request.Headers.GetValues("my_Token").FirstOrDefault();
+
+                if (apiKey == "123456789")
+                {
+                    return base.SendAsync(request, cancellationToken);
+                }
+            }
+            
+                var tsc = new TaskCompletionSource<HttpResponseMessage>();
+                var response = new HttpResponseMessage(HttpStatusCode.Forbidden);
+                tsc.SetResult(response);
+                return tsc.Task;
+           
+        }
+    }
+}
+
+<system.webServer>
+    <handlers>
+      <remove name="ExtensionlessUrlHandler-Integrated-4.0" />
+      <remove name="OPTIONSVerbHandler" />
+      <remove name="TRACEVerbHandler" />
+      <add name="ExtensionlessUrlHandler-Integrated-4.0" path="*." verb="*" type="System.Web.Handlers.TransferRequestHandler" preCondition="integratedMode,runtimeVersionv4.0" />
+      <add name="OPTIONSVerbHandler" path="*" verb="OPTIONS" modules="ProtocolSupportModule" resourceType="Unspecified" requireAccess="None" />
+    </handlers>
+  </system.webServer>
+  
+
+
